@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aesthetic Elimination Spinner</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+/* --- 1. RESET & BASIC STYLES --- */
+* { box-sizing: border-box; outline: none; }
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0f172a; /* Dark Blue-Black */
+  color: #e2e8f0;
+  font-family: 'Poppins', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+}
+
+h2 {
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-top: 30px;
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+/* --- 2. CONTROLS AREA --- */
+.controls {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+input {
+  background: #334155;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  color: white;
+  font-family: inherit;
+}
+
+button {
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, filter 0.2s;
+}
+
+.btn-add { background: #10b981; color: #fff; }
+.btn-spin { 
+  background: linear-gradient(135deg, #8b5cf6, #ec4899); 
+  color: white; 
+  padding: 12px 30px;
+  font-size: 1.1em;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+}
+
+button:active { transform: scale(0.95); }
+button:disabled { background: #475569; cursor: not-allowed; opacity: 0.6; }
+
+/* --- 3. WHEEL CONTAINER --- */
+.wheel-wrapper {
+  position: relative;
+  width: 340px;
+  height: 340px;
+  margin: 20px auto;
+  filter: drop-shadow(0 0 20px rgba(0,0,0,0.5));
+}
+
+#wheelCanvas {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); /* Easing halus */
+}
+
+/* Penunjuk (Arrow) */
+.pointer {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; 
+  height: 0; 
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 25px solid #ffffff;
+  filter: drop-shadow(0 4px 2px rgba(0,0,0,0.5));
+  z-index: 10;
+}
+
+/* Titik tengah */
+.center-circle {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px; height: 40px;
+  background: #0f172a;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  z-index: 5;
+  box-shadow: inset 0 0 10px #000;
+}
+
+/* --- 4. RESULT MODAL/TEXT --- */
+#winnerDisplay {
+  margin-top: 20px;
+  font-size: 1.2em;
+  font-weight: bold;
+  height: 30px;
+  color: #22d3ee;
+  text-align: center;
+}
+
+/* --- 5. HISTORY TABLE --- */
+.table-container {
+  margin-top: 30px;
+  width: 90%;
+  max-width: 500px;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 50px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+th {
+  text-align: left;
+  color: #94a3b8;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #475569;
+}
+
+td {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.color-dot {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* Notifikasi habis */
+.finished-msg {
+  color: #10b981;
+  font-weight: bold;
+  text-align: center;
+  padding: 20px;
+  display: none;
+}
+
+</style>
+</head>
+<body>
+
+<h2>LUCKY WHEEL</h2>
+
+<div class="controls">
+  <input id="inputName" type="text" placeholder="Nama / Angka..." onkeydown="if(event.key==='Enter') addItem()">
+  <button class="btn-add" onclick="addItem()">+ Tambah</button>
+</div>
+
+<div class="wheel-wrapper">
+  <div class="pointer"></div>
+  <canvas id="wheelCanvas" width="500" height="500"></canvas>
+  <div class="center-circle"></div>
+</div>
+
+<div style="text-align:center; margin-top:20px;">
+  <button id="spinBtn" class="btn-spin" onclick="spin()">PUTAR SEKARANG</button>
+</div>
+
+<div id="winnerDisplay"></div>
+
+<div class="table-container">
+  <table>
+    <thead>
+      <tr>
+        <th width="15%">No</th>
+        <th>Nama Pemenang</th>
+        <th width="20%">Warna</th>
+      </tr>
+    </thead>
+    <tbody id="historyList">
+      </tbody>
+  </table>
+  <div id="finishedMsg" class="finished-msg">Semua nama telah terpilih! div>
+</div>
+
+<script>
+/* ================= CONFIGURATION ================= */
+const canvas = document.getElementById("wheelCanvas");
+const ctx = canvas.getContext("2d");
+const spinBtn = document.getElementById("spinBtn");
+const inputName = document.getElementById("inputName");
+const winnerDisplay = document.getElementById("winnerDisplay");
+const historyList = document.getElementById("historyList");
+
+let items = [];     // Array objek peserta aktif
+let winners = [];   // Array pemenang
+let currentRotation = 0;
+let isSpinning = false;
+
+// Palet warna estetik (fungsi generator)
+function getColor(index, total) {
+  // Menggunakan HSL agar warna harmonis dan cerah
+  const hue = Math.round((360 / total) * index); 
+  return `hsl(${hue}, 70%, 60%)`;
+}
+
+/* ================= LOGIC RIGGED (AKURASI) ================= */
+function getWeight(value) {
+  const v = value.trim().toLowerCase();
+
+  // ATURAN KHUSUS (Custom Weights)
+  // Format: "nama/angka" : nilai_bobot
+  // Bobot KECIL (0.000...) = Susah terpilih (bertahan sampai akhir)
+  // Bobot BESAR (1000...)  = Mudah terpilih (langsung keluar)
+  const customWeights = {
+    "23": 0.00000,
+    "30": 0.000001,
+    "m.alif haryanto": 0.00000000,
+    "m.sandi oktaviandy": 0.000000001,
+    // Contoh bobot tinggi (langsung menang/keluar):
+    "khalid": 5000
+  };
+
+  // 1. Cek apakah input (v) ada di daftar 'customWeights'
+  if (customWeights.hasOwnProperty(v)) {
+    return customWeights[v];
+  }
+
+  // 2. Jika tidak ada di daftar, pakai bobot standar
+  return 10; 
+}
+
+/* ========================================================== */
+
+function addItem() {
+  const val = inputName.value.trim();
+  if (!val) return;
+
+  items.push({
+    text: val,
+    weight: getWeight(val),
+    color: null // Akan di-generate saat draw
+  });
+
+  inputName.value = "";
+  drawWheel();
+}
+
+function drawWheel() {
+  const totalItems = items.length;
+  if (totalItems === 0) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const radius = centerX;
+  const sliceAngle = (2 * Math.PI) / totalItems;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  items.forEach((item, i) => {
+    // 1. Update warna dinamis berdasarkan jumlah item tersisa
+    item.color = getColor(i, totalItems);
+
+    // 2. Gambar Slice
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, i * sliceAngle, (i + 1) * sliceAngle);
+    ctx.fillStyle = item.color;
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a"; // Garis pemisah
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // 3. Gambar Teks
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(i * sliceAngle + sliceAngle / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 24px Poppins";
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 4;
+    
+    // Truncate text jika terlalu panjang
+    let displayText = item.text;
+    if(displayText.length > 15) displayText = displayText.substring(0,12) + "...";
+    
+    ctx.fillText(displayText, radius - 40, 8);
+    ctx.restore();
+  });
+}
+
+// Fungsi memilih pemenang berdasarkan bobot (Rigged logic applied here)
+function weightedPick() {
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (let i = 0; i < items.length; i++) {
+    random -= items[i].weight;
+    if (random <= 0) {
+      return i; // Mengembalikan INDEX pemenang
+    }
+  }
+  return 0; // Fallback
+}
+
+function spin() {
+  if (isSpinning || items.length === 0) return;
+  isSpinning = true;
+  spinBtn.disabled = true;
+  winnerDisplay.innerText = "Memutar...";
+
+  // 1. Tentukan pemenang SEBELUM animasi
+  const winningIndex = weightedPick();
+  const winner = items[winningIndex];
+
+  // 2. Hitung rotasi agar panah (atas) menunjuk ke pemenang
+  // Panah ada di posisi 270 derajat (atau -90) dalam canvas arc standar, tapi di CSS kita putar canvasnya.
+  // Logika sederhana: Putar banyak kali + offset target
+  
+  const sliceAngleDeg = 360 / items.length;
+  // Posisi target (tengah slice) dalam derajat lingkaran
+  const targetSliceAngle = (winningIndex * sliceAngleDeg) + (sliceAngleDeg / 2);
+  
+  // Karena panah ada di ATAS (0 derajat CSS transform), kita harus memutar canvas 
+  // sedemikian rupa sehingga targetSliceAngle bertemu 270 derajat (posisi jam 12 di canvas math).
+  // Rumus: Rotasi saat ini + (360 * putaran) + (360 - target) + offsetPanah
+  // Lebih mudah: Targetkan ke 0 (atas).
+  
+  // Kita tambahkan putaran acak minimal 5x (1800 derajat)
+  const extraSpins = 360 * 10; 
+  
+  // Hitung posisi mendarat. 
+  // Agar slice ke-i ada di atas, rotasi harus: - (i * sliceAngle)
+  // Dikoreksi agar jarum menunjuk tengah slice
+  const stopAngle = 360 - targetSliceAngle + 270; // 270 offset karena 0 di canvas = jam 3
+  
+  const totalRotation = currentRotation + extraSpins + (stopAngle % 360);
+  
+  // Set rotasi CSS
+  canvas.style.transform = `rotate(${totalRotation}deg)`;
+  currentRotation = totalRotation; // Simpan posisi terakhir agar putaran selanjutnya mulus
+
+  // 3. Tunggu animasi selesai (4 detik)
+  setTimeout(() => {
+    handleWin(winningIndex, winner);
+  }, 7000);
+}
+
+function handleWin(index, winnerItem) {
+  isSpinning = false;
+  spinBtn.disabled = false;
+  
+  // Tampilkan teks
+  winnerDisplay.innerText = "Berhenti di: " + winnerItem.text;
+
+  // Masukkan ke tabel riwayat
+  addToHistory(winnerItem);
+
+  // ELIMINASI: Hapus dari daftar
+  items.splice(index, 1);
+
+  // Reset visual canvas (tanpa animasi kasar)
+  // Kita harus menggambar ulang roda tanpa item pemenang
+  // Tapi karena rotasi CSS masih di posisi lama, visualnya akan aneh jika langsung berubah.
+  // Trik: Reset rotasi ke 0 secara instan, tapi gambar ulang roda.
+  
+  canvas.style.transition = 'none';
+  canvas.style.transform = `rotate(0deg)`;
+  currentRotation = 0;
+  
+  // Gambar ulang roda dengan sisa peserta
+  drawWheel();
+  
+  // Kembalikan transition untuk spin berikutnya
+  setTimeout(() => {
+    canvas.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+  }, 50);
+
+  // Cek jika habis
+  if (items.length === 0) {
+    spinBtn.disabled = true;
+    spinBtn.innerText = "SELESAI";
+    document.getElementById("finishedMsg").style.display = "block";
+    winnerDisplay.innerText = "Permainan Selesai!";
+  }
+}
+
+function addToHistory(item) {
+  const rowCount = historyList.rows.length + 1;
+  const row = document.createElement("tr");
+  
+  row.innerHTML = `
+    <td>#${rowCount}</td>
+    <td>${item.text}</td>
+    <td><span class="color-dot" style="background:${item.color}"></span></td>
+  `;
+  
+  // Animasi muncul
+  row.style.opacity = 0;
+  historyList.appendChild(row);
+  
+  // Fade in simple
+  setTimeout(() => row.style.opacity = 1, 100);
+}
+
+// Inisialisasi awal (jika mau data dummy)
+// addItem("Peserta 1"); 
+</script>
+
+</body>
+</html>
